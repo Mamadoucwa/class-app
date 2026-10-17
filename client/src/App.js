@@ -219,33 +219,33 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex flex-col">
         {/* Header */}
-        <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 px-6 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold">📚 Classe {roomCode}</h1>
-            <span className="text-sm text-gray-400">
-              👥 {participants.length} participant{participants.length > 1 ? 's' : ''}
+        
+                <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 px-3 md:px-6 py-2 md:py-3 flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+            <h1 className="text-base md:text-xl font-bold">📚 {roomCode}</h1>
+            <span className="text-xs md:text-sm text-gray-400">
+              👥 {participants.length}
             </span>
-            <span className={`text-sm ${connected ? 'text-green-400' : 'text-red-400'}`}>
-              ● {connected ? 'En ligne' : 'Hors ligne'}
+            <span className={`text-xs md:text-sm ${connected ? 'text-green-400' : 'text-red-400'}`}>
+              ●
             </span>
             {isRecording && (
-              <span className="text-sm bg-red-500/20 border border-red-400/50 px-3 py-1 rounded-full font-bold text-red-300 animate-pulse">
-                🔴 REC
+              <span className="text-xs bg-red-500/20 border border-red-400/50 px-2 py-0.5 rounded-full font-bold text-red-300 animate-pulse">
+                🔴
               </span>
             )}
           </div>
           <button
             onClick={handleLeave}
-            className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+            className="bg-red-500 hover:bg-red-600 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-semibold transition-colors"
           >
             Quitter
           </button>
         </header>
-
         {/* Contenu principal */}
-        <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+                <div className="flex-1 flex flex-col lg:flex-row gap-2 md:gap-4 p-2 md:p-4 overflow-hidden">
           {/* Zone unique : Vidéos OU Tableau blanc */}
-          <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                    <div className="flex-1 flex flex-col gap-2 md:gap-4 overflow-hidden min-h-0">
             {showWhiteboard ? (
               <div className="flex-1 overflow-hidden">
                 <Whiteboard roomId={roomCode} />
@@ -272,7 +272,7 @@ function App() {
           </div>
 
           {/* Colonne de droite : Chat */}
-          <div className="w-80 flex flex-col gap-4 overflow-hidden">
+                    <div className="w-full lg:w-80 flex flex-col gap-2 md:gap-4 overflow-hidden max-h-[45vh] lg:max-h-none">
             <div className="flex-1 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 flex flex-col overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10">
                 <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wide">
@@ -324,7 +324,7 @@ function App() {
         </div>
 
         {/* Barre de contrôles */}
-        <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 px-6 py-4 flex justify-center gap-3 flex-wrap">
+               <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 px-2 md:px-6 py-2 md:py-4 flex justify-center gap-1 md:gap-3 flex-wrap">
           <ControlButton
             onClick={toggleMic}
             active={micOn}
@@ -473,12 +473,13 @@ function ControlButton({ onClick, active, icon, label, color = 'green' }) {
   };
 
   return (
-    <button
+        <button
       onClick={onClick}
-      className={`px-5 py-3 rounded-xl border-2 font-semibold text-sm transition-all flex items-center gap-2 backdrop-blur-sm ${colorClasses[color]}`}
+      className={`px-2 md:px-5 py-2 md:py-3 rounded-lg md:rounded-xl border-2 font-semibold text-xs md:text-sm transition-all flex items-center gap-1 md:gap-2 backdrop-blur-sm ${colorClasses[color]}`}
     >
-      <span className="text-xl">{icon}</span>
-      <span className="hidden sm:inline">{label}</span>
+    >
+            <span className="text-base md:text-xl">{icon}</span>
+      <span className="hidden lg:inline">{label}</span>
     </button>
   );
 }
