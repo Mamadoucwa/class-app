@@ -245,13 +245,13 @@ function App() {
         {/* Contenu principal */}
                 <div className="flex-1 flex flex-col lg:flex-row gap-2 md:gap-4 p-2 md:p-4 overflow-hidden">
           {/* Zone unique : Vidéos OU Tableau blanc */}
-                    <div className="flex-1 flex flex-col gap-2 md:gap-4 overflow-hidden min-h-0">
+                   <div className="flex-1 flex flex-col gap-2 md:gap-4 overflow-hidden">
             {showWhiteboard ? (
               <div className="flex-1 overflow-hidden">
                 <Whiteboard roomId={roomCode} />
               </div>
             ) : (
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr overflow-auto">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-min overflow-auto content-start">
                 {myStream && (
                   <VideoTile
                     key="my-video"
@@ -477,8 +477,7 @@ function ControlButton({ onClick, active, icon, label, color = 'green' }) {
       onClick={onClick}
       className={`px-2 md:px-5 py-2 md:py-3 rounded-lg md:rounded-xl border-2 font-semibold text-xs md:text-sm transition-all flex items-center gap-1 md:gap-2 backdrop-blur-sm ${colorClasses[color]}`}
     >
-    >
-            <span className="text-base md:text-xl">{icon}</span>
+           <span className="text-base md:text-xl">{icon}</span>
       <span className="hidden lg:inline">{label}</span>
     </button>
   );
