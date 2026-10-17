@@ -324,7 +324,7 @@ function App() {
         </div>
 
         {/* Barre de contrôles */}
-               <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 px-2 md:px-6 py-2 md:py-4 flex justify-center gap-1 md:gap-3 flex-wrap">
+              <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 px-2 md:px-6 pt-2 pb-4 md:py-4 flex justify-center gap-1 md:gap-3 flex-wrap">
           <ControlButton
             onClick={toggleMic}
             active={micOn}
