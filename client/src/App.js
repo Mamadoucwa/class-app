@@ -245,13 +245,13 @@ function App() {
         {/* Contenu principal */}
                 <div className="flex-1 flex flex-col lg:flex-row gap-2 md:gap-4 p-2 md:p-4 overflow-hidden">
           {/* Zone unique : Vidéos OU Tableau blanc */}
-                   <div className="flex-1 flex flex-col gap-2 md:gap-4 overflow-hidden">
+                   <div className="flex-1 flex flex-col gap-2 md:gap-4 overflow-hidden h-[40vh] lg:h-auto">
             {showWhiteboard ? (
               <div className="flex-1 overflow-hidden">
                 <Whiteboard roomId={roomCode} />
               </div>
             ) : (
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-min overflow-auto content-start">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 auto-rows-min overflow-auto content-start">
                 {myStream && (
                   <VideoTile
                     key="my-video"
@@ -272,7 +272,7 @@ function App() {
           </div>
 
           {/* Colonne de droite : Chat */}
-                    <div className="w-full lg:w-80 flex flex-col gap-2 md:gap-4 overflow-hidden max-h-[45vh] lg:max-h-none">
+                   <div className="w-full lg:w-80 flex flex-col gap-2 md:gap-4 overflow-hidden flex-1 lg:flex-none lg:h-auto">
             <div className="flex-1 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 flex flex-col overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10">
                 <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wide">
