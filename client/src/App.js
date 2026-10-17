@@ -16,16 +16,16 @@ function App() {
   const [camOn, setCamOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
-const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+
   const { peers, myStream } = useWebRTC({
     roomId: roomCode,
     user: { name, role },
     inClass,
   });
-
-const [isRecording, setIsRecording] = useState(false);
-const mediaRecorderRef = useRef(null);
-const recordedChunksRef = useRef([]);
 
   useEffect(() => {
     socket.on('connect', () => setConnected(true));
@@ -153,71 +153,66 @@ const recordedChunksRef = useRef([]);
     });
   };
 
-  // 🔴 Démarrer l'enregistrement
-const startRecording = () => {
-  if (!myStream) {
-    alert('Caméra non disponible');
-    return;
-  }
-
-  try {
-    // Réinitialiser les chunks
-    recordedChunksRef.current = [];
-
-    // Choisir le meilleur format supporté
-    const options = { mimeType: 'video/webm;codecs=vp9,opus' };
-    let recorder;
-    try {
-      recorder = new MediaRecorder(myStream, options);
-    } catch (e) {
-      // Fallback si vp9 n'est pas supporté
-      recorder = new MediaRecorder(myStream);
+  const startRecording = () => {
+    if (!myStream) {
+      alert('Caméra non disponible');
+      return;
     }
 
-    // À chaque donnée disponible, on la stocke
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) {
-        recordedChunksRef.current.push(e.data);
+    try {
+      recordedChunksRef.current = [];
+
+      const options = { mimeType: 'video/webm;codecs=vp9,opus' };
+      let recorder;
+      try {
+        recorder = new MediaRecorder(myStream, options);
+      } catch (e) {
+        recorder = new MediaRecorder(myStream);
       }
-    };
 
-    // À l'arrêt, on télécharge le fichier
-    recorder.onstop = () => {
-      const blob = new Blob(recordedChunksRef.current, {
-        type: 'video/webm',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `classe-${roomCode}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
-    };
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunksRef.current.push(e.data);
+        }
+      };
 
-    // Démarrer l'enregistrement
-    recorder.start(1000); // Un chunk par seconde
-    mediaRecorderRef.current = recorder;
-    setIsRecording(true);
-    console.log('🔴 Enregistrement démarré');
-  } catch (err) {
-    console.error('❌ Erreur enregistrement:', err);
-    alert('Impossible de démarrer l\'enregistrement : ' + err.message);
-  }
-};
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, {
+          type: 'video/webm',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `classe-${roomCode}-${new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/:/g, '-')}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+      };
 
-// ⏹️ Arrêter l'enregistrement
-const stopRecording = () => {
-  if (mediaRecorderRef.current && isRecording) {
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-    console.log('⏹️ Enregistrement arrêté, téléchargement en cours...');
-  }
-};
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      console.log('🔴 Enregistrement démarré');
+    } catch (err) {
+      console.error('❌ Erreur enregistrement:', err);
+      alert('Impossible de démarrer l\'enregistrement : ' + err.message);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      console.log('⏹️ Enregistrement arrêté, téléchargement en cours...');
+    }
+  };
 
   // ===== ÉCRAN DE CLASSE =====
   if (inClass) {
@@ -233,12 +228,11 @@ const stopRecording = () => {
             <span className={`text-sm ${connected ? 'text-green-400' : 'text-red-400'}`}>
               ● {connected ? 'En ligne' : 'Hors ligne'}
             </span>
-          {isRecording && (
-  <span className="text-sm bg-red-500/20 border border-red-400/50 px-3 py-1 rounded-full font-bold text-red-300 animate-pulse">
-    🔴 REC
-  </span>
-)}
-          
+            {isRecording && (
+              <span className="text-sm bg-red-500/20 border border-red-400/50 px-3 py-1 rounded-full font-bold text-red-300 animate-pulse">
+                🔴 REC
+              </span>
+            )}
           </div>
           <button
             onClick={handleLeave}
@@ -249,49 +243,36 @@ const stopRecording = () => {
         </header>
 
         {/* Contenu principal */}
-        
         <div className="flex-1 flex gap-4 p-4 overflow-hidden">
-          {/* Zone vidéo */}
+          {/* Zone unique : Vidéos OU Tableau blanc */}
           <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 auto-rows-fr overflow-auto">
-              {myStream && (
-                <VideoTile stream={myStream} name={`${name} (Vous)`} muted />
-              )}
-              {Object.entries(peers).map(([socketId, { stream, user }]) => (
-                <VideoTile
-                  key={socketId}
-                  stream={stream}
-                  name={user?.name || 'Participant'}
-                />
-              ))}
-            </div>
+            {showWhiteboard ? (
+              <div className="flex-1 overflow-hidden">
+                <Whiteboard roomId={roomCode} />
+              </div>
+            ) : (
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-fr overflow-auto">
+                {myStream && (
+                  <VideoTile
+                    key="my-video"
+                    stream={myStream}
+                    name={`${name} (Vous)`}
+                    muted
+                  />
+                )}
+                {Object.entries(peers).map(([socketId, { stream, user }]) => (
+                  <VideoTile
+                    key={`peer-${socketId}`}
+                    stream={stream}
+                    name={user?.name || 'Participant'}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Colonne de droite */}
-         
-          <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-  {showWhiteboard ? (
-    <div className="flex-1 overflow-hidden">
-      <Whiteboard roomId={roomCode} />
-    </div>
-  ) : (
-    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 auto-rows-fr overflow-auto">
-      {myStream && (
-        <VideoTile stream={myStream} name={`${name} (Vous)`} muted />
-      )}
-      {Object.entries(peers).map(([socketId, { stream, user }]) => (
-        <VideoTile
-          key={socketId}
-          stream={stream}
-          name={user?.name || 'Participant'}
-        />
-      ))}
-    </div>
-  )}
-</div>
-
-
-            {/* Chat */}
+          {/* Colonne de droite : Chat */}
+          <div className="w-80 flex flex-col gap-4 overflow-hidden">
             <div className="flex-1 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 flex flex-col overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10">
                 <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wide">
@@ -340,9 +321,9 @@ const stopRecording = () => {
               </form>
             </div>
           </div>
-        
+        </div>
 
-       {/* Barre de contrôles */}
+        {/* Barre de contrôles */}
         <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 px-6 py-4 flex justify-center gap-3 flex-wrap">
           <ControlButton
             onClick={toggleMic}
@@ -370,21 +351,20 @@ const stopRecording = () => {
             icon="✋"
             label={handRaised ? 'Main levée' : 'Lever main'}
           />
-        <ControlButton
-  onClick={() => setShowWhiteboard(!showWhiteboard)}
-  active={!showWhiteboard}
-  color={showWhiteboard ? 'orange' : 'gray'}
-  icon="📝"
-  label={showWhiteboard ? 'Fermer' : 'Tableau'}
-/>
-
-<ControlButton
-  onClick={isRecording ? stopRecording : startRecording}
-  active={!isRecording}
-  color={isRecording ? 'red' : 'gray'}
-  icon={isRecording ? '⏹️' : '🔴'}
-  label={isRecording ? 'Arrêter' : 'Enregistrer'}
-/>
+          <ControlButton
+            onClick={() => setShowWhiteboard(!showWhiteboard)}
+            active={!showWhiteboard}
+            color={showWhiteboard ? 'orange' : 'gray'}
+            icon="📝"
+            label={showWhiteboard ? 'Fermer' : 'Tableau'}
+          />
+          <ControlButton
+            onClick={isRecording ? stopRecording : startRecording}
+            active={!isRecording}
+            color={isRecording ? 'red' : 'gray'}
+            icon={isRecording ? '⏹️' : '🔴'}
+            label={isRecording ? 'Arrêter' : 'Enregistrer'}
+          />
         </footer>
       </div>
     );
@@ -490,7 +470,6 @@ function ControlButton({ onClick, active, icon, label, color = 'green' }) {
     orange: 'bg-orange-500/20 border-orange-400/50 hover:bg-orange-500/30',
     red: 'bg-red-500/30 border-red-400/60 hover:bg-red-500/40 animate-pulse',
     gray: 'bg-gray-500/20 border-gray-400/50 hover:bg-gray-500/30',
-
   };
 
   return (

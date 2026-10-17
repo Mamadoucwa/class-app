@@ -5,32 +5,52 @@ import { socket } from './socket';
 export function useWebRTC({ roomId, user, inClass }) {
   const [peers, setPeers] = useState({});
   const [myStream, setMyStream] = useState(null);
-  const peersRef = useRef({}); // Stockage stable des peers
+  const peersRef = useRef({});
+  const streamRef = useRef(null); // 🔒 Référence unique au flux
 
   // 1️⃣ Activer la caméra et le micro quand on entre en classe
   useEffect(() => {
     if (!inClass) return;
 
-    let stream;
+    // 🔒 Si un flux existe déjà, on le réutilise
+    if (streamRef.current) {
+      console.log('♻️ Réutilisation du flux existant');
+      setMyStream(streamRef.current);
+      return;
+    }
+
+    let cancelled = false;
 
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        // 🔒 Nettoyer tout ancien flux résiduel
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: 320, height: 240 },
           audio: true,
         });
+
+        // 🔒 Si le composant a été démonté pendant l'attente, on arrête
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
         setMyStream(stream);
-        console.log('✅ Caméra activée');
+        console.log('✅ Caméra activée (une seule fois)');
+        console.log('  Nombre de pistes vidéo:', stream.getVideoTracks().length);
       } catch (err) {
-        console.error('❌ Impossible d\'accéder à la caméra:', err);
-        alert('Caméra refusée. Tu ne pourras pas être vu.');
+        console.error('❌ Caméra:', err);
       }
     })();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      cancelled = true;
     };
   }, [inClass]);
 
@@ -38,9 +58,8 @@ export function useWebRTC({ roomId, user, inClass }) {
   useEffect(() => {
     if (!myStream || !inClass) return;
 
-    // --- Un nouvel utilisateur arrive : JE l'appelle (initiator) ---
     const handleUserJoined = ({ socketId, user: newUser }) => {
-      console.log(`👤 ${newUser.name} a rejoint, création du peer...`);
+      if (socketId === socket.id) return;
 
       const peer = new Peer({
         initiator: true,
@@ -49,36 +68,27 @@ export function useWebRTC({ roomId, user, inClass }) {
       });
 
       peer.on('signal', (signal) => {
-        // Envoyer mon "offre" à ce participant via le serveur
         socket.emit('signal', { to: socketId, signal });
       });
 
       peer.on('stream', (remoteStream) => {
-        console.log(`📹 Stream reçu de ${newUser.name}`);
         setPeers((prev) => ({
           ...prev,
           [socketId]: { stream: remoteStream, user: newUser },
         }));
       });
 
-      peer.on('error', (err) => {
-        console.error('Erreur peer:', err);
-      });
-
+      peer.on('error', (err) => console.error('Erreur peer:', err));
       peersRef.current[socketId] = peer;
     };
 
-    // --- Je reçois un signal (offre ou réponse) ---
     const handleSignal = ({ from, signal }) => {
-      // Cas A : peer déjà créé → c'est une réponse à mon offre
+      if (from === socket.id) return;
+
       if (peersRef.current[from]) {
-        console.log(`📡 Signal reçu de ${from} (peer existant)`);
         peersRef.current[from].signal(signal);
         return;
       }
-
-      // Cas B : peer inconnu → c'est une offre, je réponds
-      console.log(`📡 Signal reçu de ${from} (nouveau peer)`);
 
       const peer = new Peer({
         initiator: false,
@@ -91,24 +101,18 @@ export function useWebRTC({ roomId, user, inClass }) {
       });
 
       peer.on('stream', (remoteStream) => {
-        console.log(`📹 Stream reçu de ${from}`);
         setPeers((prev) => ({
           ...prev,
           [from]: { stream: remoteStream, user: { name: 'Participant' } },
         }));
       });
 
-      peer.on('error', (err) => {
-        console.error('Erreur peer:', err);
-      });
-
+      peer.on('error', (err) => console.error('Erreur peer:', err));
       peer.signal(signal);
       peersRef.current[from] = peer;
     };
 
-    // --- Un utilisateur part ---
     const handleUserLeft = (socketId) => {
-      console.log(`👋 ${socketId} a quitté`);
       if (peersRef.current[socketId]) {
         peersRef.current[socketId].destroy();
         delete peersRef.current[socketId];

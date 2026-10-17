@@ -17,14 +17,13 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Le serveur fonctionne !' });
 });
 
-// Socket.io
 // Stockage des salles en mémoire
 const rooms = {};
 
 io.on('connection', (socket) => {
   console.log('🔌 Utilisateur connecté:', socket.id);
 
-  // Un utilisateur rejoint une classe
+  // 1️⃣ Un utilisateur rejoint une classe
   socket.on('join-class', ({ roomId, user }) => {
     // Créer la salle si elle n'existe pas
     if (!rooms[roomId]) {
@@ -36,54 +35,7 @@ io.on('connection', (socket) => {
       ...user,
       socketId: socket.id,
     });
-      // 💬 Message de chat
-  socket.on('chat-message', ({ roomId, text, user }) => {
-    const message = {
-      text,
-      user,
-      socketId: socket.id,
-      timestamp: Date.now(),
-    };
 
-    console.log(`💬 ${user.name}: ${text}`);
-
-    // Envoyer à TOUS les participants de la salle (y compris l'expéditeur)
-    io.to(roomId).emit('chat-message', message);
-  });
-  // 📹 Signalisation WebRTC
-  // Permet aux navigateurs de se transmettre leurs "offres" et "réponses"
-  socket.on('signal', ({ to, signal }) => {
-    console.log(`📡 Signal de ${socket.id} vers ${to}`);
-    io.to(to).emit('signal', { from: socket.id, signal });
-  });
-
-    // 📝 Tableau blanc : dessin en temps réel
-  socket.on('draw', ({ roomId, drawData }) => {
-    // Rediffuser le dessin à tous SAUF l'expéditeur
-    socket.to(roomId).emit('draw', drawData);
-  });
-
-  // 🗑️ Tableau blanc : effacer pour tout le monde
-  socket.on('clear-board', ({ roomId }) => {
-    socket.to(roomId).emit('clear-board');
-  });
-    // ✋ Lever / baisser la main
-  socket.on('raise-hand', ({ roomId, raised, user }) => {
-    console.log(`✋ ${user.name} ${raised ? 'lève' : 'baisse'} la main`);
-
-    // Mettre à jour le participant dans la salle
-    if (rooms[roomId]) {
-      const participant = rooms[roomId].participants.find(
-        (p) => p.socketId === socket.id
-      );
-      if (participant) {
-        participant.handRaised = raised;
-      }
-
-      // Envoyer la nouvelle liste à TOUS
-      io.to(roomId).emit('participants-list', rooms[roomId].participants);
-    }
-  });
     // Rejoindre la "room" Socket.io
     socket.join(roomId);
 
@@ -97,11 +49,57 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-joined', { user, socketId: socket.id });
   });
 
-  // Un utilisateur se déconnecte
+  // 2️⃣ Message de chat
+  socket.on('chat-message', ({ roomId, text, user }) => {
+    const message = {
+      text,
+      user,
+      socketId: socket.id,
+      timestamp: Date.now(),
+    };
+
+    console.log(`💬 ${user.name}: ${text}`);
+
+    // Envoyer à TOUS les participants de la salle (y compris l'expéditeur)
+    io.to(roomId).emit('chat-message', message);
+  });
+
+  // 3️⃣ Signalisation WebRTC
+  socket.on('signal', ({ to, signal }) => {
+    console.log(`📡 Signal de ${socket.id} vers ${to}`);
+    io.to(to).emit('signal', { from: socket.id, signal });
+  });
+
+  // 4️⃣ Tableau blanc : dessin en temps réel
+  socket.on('draw', ({ roomId, drawData }) => {
+    socket.to(roomId).emit('draw', drawData);
+  });
+
+  // 5️⃣ Tableau blanc : effacer
+  socket.on('clear-board', ({ roomId }) => {
+    socket.to(roomId).emit('clear-board');
+  });
+
+  // 6️⃣ Lever / baisser la main
+  socket.on('raise-hand', ({ roomId, raised, user }) => {
+    console.log(`✋ ${user.name} ${raised ? 'lève' : 'baisse'} la main`);
+
+    if (rooms[roomId]) {
+      const participant = rooms[roomId].participants.find(
+        (p) => p.socketId === socket.id
+      );
+      if (participant) {
+        participant.handRaised = raised;
+      }
+
+      io.to(roomId).emit('participants-list', rooms[roomId].participants);
+    }
+  });
+
+  // 7️⃣ Un utilisateur se déconnecte
   socket.on('disconnect', () => {
     console.log('❌ Déconnecté:', socket.id);
 
-    // Le retirer de toutes les salles
     for (const roomId in rooms) {
       const before = rooms[roomId].participants.length;
       rooms[roomId].participants = rooms[roomId].participants.filter(
@@ -110,7 +108,6 @@ io.on('connection', (socket) => {
       const after = rooms[roomId].participants.length;
 
       if (before !== after) {
-        // Envoyer la nouvelle liste à tous
         io.to(roomId).emit('participants-list', rooms[roomId].participants);
         io.to(roomId).emit('user-left', socket.id);
         console.log(`👋 Un participant a quitté ${roomId}`);
