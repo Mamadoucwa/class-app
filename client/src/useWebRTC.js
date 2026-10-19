@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Peer from 'simple-peer';
 import { socket } from './socket';
 
-// 🌍 Configuration des serveurs STUN/TURN pour traverser les NAT/Firewalls
+// 🌍 Configuration des serveurs STUN/TURN
 const peerConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -29,15 +29,13 @@ export function useWebRTC({ roomId, user, inClass }) {
   const [peers, setPeers] = useState({});
   const [myStream, setMyStream] = useState(null);
   const peersRef = useRef({});
-  const streamRef = useRef(null); // 🔒 Référence unique au flux
+  const streamRef = useRef(null);
 
   // 1️⃣ Activer la caméra et le micro quand on entre en classe
   useEffect(() => {
     if (!inClass) return;
 
-    // 🔒 Si un flux existe déjà, on le réutilise
     if (streamRef.current) {
-      console.log('♻️ Réutilisation du flux existant');
       setMyStream(streamRef.current);
       return;
     }
@@ -46,7 +44,6 @@ export function useWebRTC({ roomId, user, inClass }) {
 
     (async () => {
       try {
-        // 🔒 Nettoyer tout ancien flux résiduel
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop());
           streamRef.current = null;
@@ -57,7 +54,6 @@ export function useWebRTC({ roomId, user, inClass }) {
           audio: true,
         });
 
-        // 🔒 Si le composant a été démonté pendant l'attente, on arrête
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
@@ -65,8 +61,7 @@ export function useWebRTC({ roomId, user, inClass }) {
 
         streamRef.current = stream;
         setMyStream(stream);
-        console.log('✅ Caméra activée (une seule fois)');
-        console.log('  Nombre de pistes vidéo:', stream.getVideoTracks().length);
+        console.log('✅ Caméra activée');
       } catch (err) {
         console.error('❌ Caméra:', err);
       }
@@ -81,14 +76,18 @@ export function useWebRTC({ roomId, user, inClass }) {
   useEffect(() => {
     if (!myStream || !inClass) return;
 
+    // ⚠️ On déclare handleUserJoined AVANT de l'utiliser
     const handleUserJoined = ({ socketId, user: newUser }) => {
       if (socketId === socket.id) return;
+      if (peersRef.current[socketId]) return; // Empêcher les doublons
+
+      console.log(`👤 Création peer pour ${newUser.name}`);
 
       const peer = new Peer({
         initiator: true,
         trickle: false,
         stream: myStream,
-        config: peerConfig, // 👈 Ajout de la config STUN/TURN
+        config: peerConfig,
       });
 
       peer.on('signal', (signal) => {
@@ -96,6 +95,7 @@ export function useWebRTC({ roomId, user, inClass }) {
       });
 
       peer.on('stream', (remoteStream) => {
+        console.log(`📹 Stream reçu de ${newUser.name}`);
         setPeers((prev) => ({
           ...prev,
           [socketId]: { stream: remoteStream, user: newUser },
@@ -109,16 +109,19 @@ export function useWebRTC({ roomId, user, inClass }) {
     const handleSignal = ({ from, signal }) => {
       if (from === socket.id) return;
 
+      // Si le peer existe déjà, on lui transmet le signal
       if (peersRef.current[from]) {
         peersRef.current[from].signal(signal);
         return;
       }
 
+      // Sinon, on crée un nouveau peer (on ne connaît pas encore son nom)
+      console.log(`📡 Signal reçu de ${from}`);
       const peer = new Peer({
         initiator: false,
         trickle: false,
         stream: myStream,
-        config: peerConfig, // 👈 Ajout de la config STUN/TURN
+        config: peerConfig,
       });
 
       peer.on('signal', (s) => {
@@ -137,6 +140,14 @@ export function useWebRTC({ roomId, user, inClass }) {
       peersRef.current[from] = peer;
     };
 
+    const handleExistingParticipants = (existing) => {
+      existing.forEach((p) => {
+        if (p.socketId === socket.id) return;
+        if (peersRef.current[p.socketId]) return;
+        handleUserJoined({ socketId: p.socketId, user: p });
+      });
+    };
+
     const handleUserLeft = (socketId) => {
       if (peersRef.current[socketId]) {
         peersRef.current[socketId].destroy();
@@ -150,11 +161,13 @@ export function useWebRTC({ roomId, user, inClass }) {
     };
 
     socket.on('user-joined', handleUserJoined);
+    socket.on('existing-participants', handleExistingParticipants);
     socket.on('signal', handleSignal);
     socket.on('user-left', handleUserLeft);
 
     return () => {
       socket.off('user-joined', handleUserJoined);
+      socket.off('existing-participants', handleExistingParticipants);
       socket.off('signal', handleSignal);
       socket.off('user-left', handleUserLeft);
     };

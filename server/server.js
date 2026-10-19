@@ -47,6 +47,9 @@ io.on('connection', (socket) => {
 
     // Notifier les autres qu'un nouveau est arrivé (sauf lui-même)
     socket.to(roomId).emit('user-joined', { user, socketId: socket.id });
+    
+        // Envoyer aussi la liste des participants actuels au nouvel arrivant
+    socket.emit('existing-participants', rooms[roomId].participants);
   });
 
   // 2️⃣ Message de chat
