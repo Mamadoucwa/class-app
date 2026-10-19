@@ -2,6 +2,9 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+require('dotenv').config();
+const mongoose = require('mongoose');
+const Message = require('./models/Message');
 
 const app = express();
 app.use(cors());
@@ -20,60 +23,78 @@ app.get('/api/health', (req, res) => {
 // Stockage des salles en mémoire
 const rooms = {};
 
+// ===== CONNEXION MONGODB =====
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ MongoDB connecté'))
+  .catch((err) => console.error('❌ MongoDB erreur:', err));
+
 io.on('connection', (socket) => {
   console.log('🔌 Utilisateur connecté:', socket.id);
 
   // 1️⃣ Un utilisateur rejoint une classe
-  socket.on('join-class', ({ roomId, user }) => {
-    // Créer la salle si elle n'existe pas
+  socket.on('join-class', async ({ roomId, user }) => {
     if (!rooms[roomId]) {
       rooms[roomId] = { participants: [] };
     }
 
-    // Ajouter le participant
     rooms[roomId].participants.push({
       ...user,
       socketId: socket.id,
     });
 
-    // Rejoindre la "room" Socket.io
     socket.join(roomId);
 
     console.log(`👤 ${user.name} (${user.role}) a rejoint ${roomId}`);
     console.log(`   Participants: ${rooms[roomId].participants.length}`);
 
-    // Envoyer la liste à TOUS les participants de la salle
+    // 🔥 Charger l'historique depuis MongoDB
+    try {
+      const history = await Message.find({ roomId })
+        .sort({ timestamp: 1 })
+        .limit(100);
+
+      socket.emit('chat-history', history);
+      console.log(`📚 Historique envoyé : ${history.length} messages`);
+    } catch (err) {
+      console.error('❌ Erreur chargement historique:', err);
+    }
+
+    // Envoyer la liste à tous
     io.to(roomId).emit('participants-list', rooms[roomId].participants);
 
-    // Notifier les autres qu'un nouveau est arrivé (sauf lui-même)
+    // Notifier les autres
     socket.to(roomId).emit('user-joined', { user, socketId: socket.id });
-    
-        // Envoyer aussi la liste des participants actuels au nouvel arrivant
-    socket.emit('existing-participants', rooms[roomId].participants);
   });
 
-  // 2️⃣ Message de chat
-  socket.on('chat-message', ({ roomId, text, user }) => {
-    const message = {
+  // 2️⃣ Message de chat (avec sauvegarde MongoDB)
+  socket.on('chat-message', async ({ roomId, text, user }) => {
+    const messageData = {
+      roomId,
       text,
       user,
       socketId: socket.id,
-      timestamp: Date.now(),
+      timestamp: new Date(),
     };
 
     console.log(`💬 ${user.name}: ${text}`);
 
-    // Envoyer à TOUS les participants de la salle (y compris l'expéditeur)
-    io.to(roomId).emit('chat-message', message);
+    try {
+      const savedMessage = await Message.create(messageData);
+      io.to(roomId).emit('chat-message', savedMessage);
+    } catch (err) {
+      console.error('❌ Erreur sauvegarde message:', err);
+      // Si erreur, on envoie quand même le message sans sauvegarde
+      io.to(roomId).emit('chat-message', messageData);
+    }
   });
 
   // 3️⃣ Signalisation WebRTC
   socket.on('signal', ({ to, signal }) => {
-    console.log(`📡 Signal de ${socket.id} vers ${to}`);
     io.to(to).emit('signal', { from: socket.id, signal });
   });
 
-  // 4️⃣ Tableau blanc : dessin en temps réel
+  // 4️⃣ Tableau blanc : dessin
   socket.on('draw', ({ roomId, drawData }) => {
     socket.to(roomId).emit('draw', drawData);
   });
@@ -99,7 +120,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 7️⃣ Un utilisateur se déconnecte
+  // 7️⃣ Déconnexion
   socket.on('disconnect', () => {
     console.log('❌ Déconnecté:', socket.id);
 
@@ -119,7 +140,8 @@ io.on('connection', (socket) => {
   });
 });
 
+// ===== DÉMARRAGE DU SERVEUR (À LA FIN) =====
 const PORT = 3001;
 server.listen(PORT, () => {
-  console.log('🚀 Serveur sur http://localhost:3001');
+  console.log(`🚀 Serveur sur http://localhost:${PORT}`);
 });

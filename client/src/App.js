@@ -18,6 +18,7 @@ function App() {
   const [handRaised, setHandRaised] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
 
@@ -38,12 +39,19 @@ function App() {
       setMessages((prev) => [...prev, message])
     );
 
+    // 📚 Charger l'historique depuis MongoDB
+    socket.on('chat-history', (history) => {
+      console.log(`📚 ${history.length} messages chargés depuis MongoDB`);
+      setMessages(history);
+    });
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('participants-list');
       socket.off('user-joined');
       socket.off('chat-message');
+      socket.off('chat-history');
     };
   }, []);
 
@@ -161,7 +169,6 @@ function App() {
 
     try {
       recordedChunksRef.current = [];
-
       const options = { mimeType: 'video/webm;codecs=vp9,opus' };
       let recorder;
       try {
@@ -177,17 +184,12 @@ function App() {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, {
-          type: 'video/webm',
-        });
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = `classe-${roomCode}-${new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace(/:/g, '-')}.webm`;
+        a.download = `classe-${roomCode}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
         document.body.appendChild(a);
         a.click();
         setTimeout(() => {
@@ -219,8 +221,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex flex-col">
         {/* Header */}
-        
-                <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 px-3 md:px-6 py-2 md:py-3 flex justify-between items-center gap-2">
+        <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 px-3 md:px-6 py-2 md:py-3 flex justify-between items-center gap-2">
           <div className="flex items-center gap-2 md:gap-4 flex-wrap">
             <h1 className="text-base md:text-xl font-bold">📚 {roomCode}</h1>
             <span className="text-xs md:text-sm text-gray-400">
@@ -242,10 +243,11 @@ function App() {
             Quitter
           </button>
         </header>
+
         {/* Contenu principal */}
-                <div className="flex-1 flex flex-col lg:flex-row gap-2 md:gap-4 p-2 md:p-4 overflow-hidden">
-          {/* Zone unique : Vidéos OU Tableau blanc */}
-                   <div className="flex-1 flex flex-col gap-2 md:gap-4 overflow-hidden h-[40vh] lg:h-auto">
+        <div className="flex-1 flex flex-col lg:flex-row gap-2 md:gap-4 p-2 md:p-4 overflow-hidden">
+          {/* Zone vidéo / Tableau blanc */}
+          <div className="flex-1 flex flex-col gap-2 md:gap-4 overflow-hidden h-[40vh] lg:h-auto">
             {showWhiteboard ? (
               <div className="flex-1 overflow-hidden">
                 <Whiteboard roomId={roomCode} />
@@ -272,7 +274,7 @@ function App() {
           </div>
 
           {/* Colonne de droite : Chat */}
-                   <div className="w-full lg:w-80 flex flex-col gap-2 md:gap-4 overflow-hidden flex-1 lg:flex-none lg:h-auto">
+          <div className="w-full lg:w-80 flex flex-col gap-2 md:gap-4 overflow-hidden flex-1 lg:flex-none lg:h-auto">
             <div className="flex-1 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 flex flex-col overflow-hidden">
               <div className="px-4 py-3 border-b border-white/10">
                 <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wide">
@@ -324,7 +326,7 @@ function App() {
         </div>
 
         {/* Barre de contrôles */}
-              <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 px-2 md:px-6 pt-2 pb-4 md:py-4 flex justify-center gap-1 md:gap-3 flex-wrap">
+        <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 px-2 md:px-6 pt-2 pb-4 md:py-4 flex justify-center gap-1 md:gap-3 flex-wrap">
           <ControlButton
             onClick={toggleMic}
             active={micOn}
@@ -372,8 +374,8 @@ function App() {
 
   // ===== ÉCRAN DE CONNEXION =====
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center p-3 md:p-4">
+      <div className="bg-white rounded-2xl md:rounded-3xl shadow-2xl p-6 md:p-10 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">
             🎓 Classes en Ligne
@@ -473,11 +475,11 @@ function ControlButton({ onClick, active, icon, label, color = 'green' }) {
   };
 
   return (
-        <button
+    <button
       onClick={onClick}
       className={`px-2 md:px-5 py-2 md:py-3 rounded-lg md:rounded-xl border-2 font-semibold text-xs md:text-sm transition-all flex items-center gap-1 md:gap-2 backdrop-blur-sm ${colorClasses[color]}`}
     >
-           <span className="text-base md:text-xl">{icon}</span>
+      <span className="text-base md:text-xl">{icon}</span>
       <span className="hidden lg:inline">{label}</span>
     </button>
   );
