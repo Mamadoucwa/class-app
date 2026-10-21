@@ -4,8 +4,7 @@ import { useWebRTC } from './useWebRTC';
 import Whiteboard from './Whiteboard';
 
 // 🔑 URL de l'API (locale ou production selon la variable d'environnement)
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
+const API_URL = 'https://class-app-2ozw.onrender.com';
 function App() {
   // --- ÉTATS D'AUTHENTIFICATION ---
   const [isLoginView, setIsLoginView] = useState(true);
