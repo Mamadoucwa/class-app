@@ -7,7 +7,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Message = require('./models/Message');
 const authRoutes = require('./routes/auth');
-const fetch = require('node-fetch');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
