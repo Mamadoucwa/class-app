@@ -1,9 +1,15 @@
 import { io } from 'socket.io-client';
 
-const URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:3001';
+// 🔥 URL en dur pour la production (Render)
+// Si tu veux tester en local, remplace par 'http://localhost:3001'
+const URL = 'https://class-app-2ozw.onrender.com';
 
 export const socket = io(URL, {
   autoConnect: false,
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: Infinity, // 🔥 Ne jamais abandonner
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 60000, // 🔥 60 secondes de timeout
+  transports: ['websocket', 'polling'], // 🔥 Essayer WebSocket d'abord
 });

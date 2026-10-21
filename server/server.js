@@ -3,18 +3,23 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
-
 const mongoose = require('mongoose');
 const Message = require('./models/Message');
 const authRoutes = require('./routes/auth');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Brancher les routes d'authentification
 app.use('/api/auth', authRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+  pingTimeout: 60000,      // 🔥 60 secondes au lieu de 20
+  pingInterval: 25000,     // 🔥 Ping toutes les 25 secondes
+  transports: ['websocket', 'polling'],
 });
 
 // Route de test
@@ -40,10 +45,16 @@ io.on('connection', (socket) => {
       rooms[roomId] = { participants: [] };
     }
 
-    rooms[roomId].participants.push({
-      ...user,
-      socketId: socket.id,
-    });
+    // Éviter les doublons
+    const existing = rooms[roomId].participants.find(
+      (p) => p.socketId === socket.id
+    );
+    if (!existing) {
+      rooms[roomId].participants.push({
+        ...user,
+        socketId: socket.id,
+      });
+    }
 
     socket.join(roomId);
 
@@ -64,6 +75,9 @@ io.on('connection', (socket) => {
 
     // Envoyer la liste à tous
     io.to(roomId).emit('participants-list', rooms[roomId].participants);
+
+    // Envoyer les participants existants au nouvel arrivant
+    socket.emit('existing-participants', rooms[roomId].participants);
 
     // Notifier les autres
     socket.to(roomId).emit('user-joined', { user, socketId: socket.id });
@@ -86,7 +100,6 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('chat-message', savedMessage);
     } catch (err) {
       console.error('❌ Erreur sauvegarde message:', err);
-      // Si erreur, on envoie quand même le message sans sauvegarde
       io.to(roomId).emit('chat-message', messageData);
     }
   });
@@ -142,8 +155,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// ===== DÉMARRAGE DU SERVEUR (À LA FIN) =====
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Serveur sur http://localhost:${PORT}`);
 });
