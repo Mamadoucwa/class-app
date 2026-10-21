@@ -3,12 +3,14 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
+
 const mongoose = require('mongoose');
 const Message = require('./models/Message');
-
+const authRoutes = require('./routes/auth');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/api/auth', authRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {
