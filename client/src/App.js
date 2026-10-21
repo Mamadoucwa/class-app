@@ -3,13 +3,14 @@ import { socket } from './socket';
 import { useWebRTC } from './useWebRTC';
 import Whiteboard from './Whiteboard';
 
-// 🔑 URL de l'API (locale ou production selon la variable d'environnement)
+// 🔑 URL locale pour tester sur ton PC
 const API_URL = 'https://class-app-2ozw.onrender.com';
+
 function App() {
   // --- ÉTATS D'AUTHENTIFICATION ---
   const [isLoginView, setIsLoginView] = useState(true);
   const [authError, setAuthError] = useState('');
-  const [user, setUser] = useState(null); // { id, name, role }
+  const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -141,7 +142,6 @@ function App() {
     }
   };
 
-  // --- DÉMARRER UNE CLASSE (Prof, depuis sa liste) ---
   const startClass = (code) => {
     setClassCode(code);
     socket.connect();
@@ -176,7 +176,6 @@ function App() {
     };
   }, []);
 
-  // --- CHAT ---
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
@@ -188,7 +187,6 @@ function App() {
     setNewMessage('');
   };
 
-  // --- CONTRÔLES ---
   const toggleMic = () => {
     if (!myStream) return;
     const audioTrack = myStream.getAudioTracks()[0];
@@ -300,7 +298,7 @@ function App() {
     );
   }
 
-  // ===== 2. ÉCRAN PROF / ÉLÈVE (Si connecté mais pas en classe) =====
+  // ===== 2. ÉCRAN PROF / ÉLÈVE =====
   if (!inClass) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center p-3">
