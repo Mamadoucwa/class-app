@@ -1,3 +1,4 @@
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -6,7 +7,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Message = require('./models/Message');
 const authRoutes = require('./routes/auth');
-
+const fetch = require('node-fetch');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -159,3 +160,12 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Serveur sur http://localhost:${PORT}`);
 });
+// 🔥 Auto-ping pour empêcher Render de couper la connexion
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://class-app-2ozw.onrender.com';
+
+setInterval(() => {
+  fetch(`${RENDER_URL}/api/health`)
+    .then((res) => res.json())
+    .then(() => console.log('🏓 Ping Render OK - Serveur réveillé'))
+    .catch((err) => console.error('❌ Ping Render échoué:', err.message));
+}, 5 * 60 * 1000); // Toutes les 5 minutes
