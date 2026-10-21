@@ -4,7 +4,7 @@ import { useWebRTC } from './useWebRTC';
 import Whiteboard from './Whiteboard';
 
 // 🔑 URL locale pour tester sur ton PC
-const API_URL = 'https://class-app-2ozw.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://class-app-2ozw.onrender.com';
 
 function App() {
   // --- ÉTATS D'AUTHENTIFICATION ---
