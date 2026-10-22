@@ -1,4 +1,3 @@
-
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -18,8 +17,8 @@ app.use('/api/auth', authRoutes);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
-  pingTimeout: 60000,      // 🔥 60 secondes au lieu de 20
-  pingInterval: 25000,     // 🔥 Ping toutes les 25 secondes
+  pingTimeout: 60000,
+  pingInterval: 25000,
   transports: ['websocket', 'polling'],
 });
 
@@ -31,9 +30,12 @@ app.get('/api/health', (req, res) => {
 // Stockage des salles en mémoire
 const rooms = {};
 
-// ===== CONNEXION MONGODB =====
+// ===== CONNEXION MONGODB (avec timeout) =====
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  })
   .then(() => console.log('✅ MongoDB connecté'))
   .catch((err) => console.error('❌ MongoDB erreur:', err));
 
@@ -46,7 +48,6 @@ io.on('connection', (socket) => {
       rooms[roomId] = { participants: [] };
     }
 
-    // Éviter les doublons
     const existing = rooms[roomId].participants.find(
       (p) => p.socketId === socket.id
     );
@@ -62,7 +63,6 @@ io.on('connection', (socket) => {
     console.log(`👤 ${user.name} (${user.role}) a rejoint ${roomId}`);
     console.log(`   Participants: ${rooms[roomId].participants.length}`);
 
-    // 🔥 Charger l'historique depuis MongoDB
     try {
       const history = await Message.find({ roomId })
         .sort({ timestamp: 1 })
@@ -74,17 +74,12 @@ io.on('connection', (socket) => {
       console.error('❌ Erreur chargement historique:', err);
     }
 
-    // Envoyer la liste à tous
     io.to(roomId).emit('participants-list', rooms[roomId].participants);
-
-    // Envoyer les participants existants au nouvel arrivant
     socket.emit('existing-participants', rooms[roomId].participants);
-
-    // Notifier les autres
     socket.to(roomId).emit('user-joined', { user, socketId: socket.id });
   });
 
-  // 2️⃣ Message de chat (avec sauvegarde MongoDB)
+  // 2️⃣ Message de chat
   socket.on('chat-message', async ({ roomId, text, user }) => {
     const messageData = {
       roomId,
@@ -160,12 +155,3 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Serveur sur http://localhost:${PORT}`);
 });
-// 🔥 Auto-ping pour empêcher Render de couper la connexion
-const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://class-app-2ozw.onrender.com';
-
-setInterval(() => {
-  fetch(`${RENDER_URL}/api/health`)
-    .then((res) => res.json())
-    .then(() => console.log('🏓 Ping Render OK - Serveur réveillé'))
-    .catch((err) => console.error('❌ Ping Render échoué:', err.message));
-}, 5 * 60 * 1000); // Toutes les 5 minutes
