@@ -125,4 +125,18 @@ router.post('/join-class', async (req, res) => {
   }
 });
 
+// 5️⃣ RÉCUPÉRER LES CLASSES D'UN PROF
+router.get('/my-classes/:teacherId', async (req, res) => {
+  console.log('🚀 Requête my-classes pour:', req.params.teacherId);
+  
+  try {
+    const classes = await Class.find({ teacherId: req.params.teacherId });
+    console.log(`✅ ${classes.length} classes trouvées`);
+    res.json(classes);
+  } catch (err) {
+    console.error('❌ ERREUR MY-CLASSES:', err);
+    res.status(500).json({ message: "Erreur", error: err.message });
+  }
+});
+
 module.exports = router;

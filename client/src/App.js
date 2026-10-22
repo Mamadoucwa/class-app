@@ -45,6 +45,19 @@ function App() {
     inClass,
   });
 
+  // --- CHARGER LES CLASSES DU PROF ---
+  const loadMyClasses = async (teacherId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/my-classes/${teacherId}`);
+      const data = await res.json();
+      if (res.ok) {
+        setMyClasses(data);
+      }
+    } catch (err) {
+      console.error('Erreur chargement classes:', err);
+    }
+  };
+
   // --- AUTHENTIFICATION ---
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -73,6 +86,11 @@ function App() {
         setUser(data.user);
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // ⚠️ CHARGER LES CLASSES DU PROF
+        if (data.user.role === 'teacher') {
+          await loadMyClasses(data.user.id);
+        }
       } else {
         alert('Compte créé ! Connecte-toi maintenant.');
         setIsLoginView(true);
@@ -84,6 +102,7 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
+    setMyClasses([]);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
